@@ -122,47 +122,52 @@ func (c *HTTPClient) GetTask(ctx context.Context, taskID string) (*Task, error) 
 }
 
 func (c *HTTPClient) Download(ctx context.Context, generationID string) (io.ReadCloser, error) {
-	url := baseURL + "/generations/" + generationID + "/download"
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := c.createRequest(ctx, "/generations/"+generationID+"/download", "GET", nil)
 	if err != nil {
-		return nil, fmt.Errorf("building request %w", err)
+		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Add("Authorization", "Bearer "+c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Set("User-Agent", c.userAgent)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("performing request %w", err)
+		return nil, fmt.Errorf("performing request: %w", err)
 	}
 
 	return resp.Body, nil
 }
 
-func (c *HTTPClient) request(ctx context.Context, method, path string, data interface{}, result interface{}) error {
+func (c *HTTPClient) createRequest(ctx context.Context, path, method string, data interface{}) (*http.Request, error) {
 	url := baseURL + path
 
 	var body io.Reader
 	if data != nil {
 		b, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("parsing request data %w", err)
+			return nil, fmt.Errorf("parsing request data: %w", err)
 		}
 		body = bytes.NewReader(b)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return fmt.Errorf("building request %w", err)
+		return nil, fmt.Errorf("building request: %w", err)
 	}
 
 	req.Header.Add("Authorization", "Bearer "+c.apiKey)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Set("User-Agent", c.userAgent)
+
+	return req, nil
+}
+
+func (c *HTTPClient) request(ctx context.Context, method, path string, data interface{}, result interface{}) error {
+	req, err := c.createRequest(ctx, path, method, data)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("performing request %w", err)
+		return fmt.Errorf("performing request: %w", err)
 	}
 	defer resp.Body.Close()
 
