@@ -13,9 +13,9 @@ import (
 
 func main() {
 
-	apiKey := os.Getenv("API_KEY")
+	apiKey := os.Getenv("DALLE_API_KEY")
 	if len(apiKey) == 0 {
-		log.Fatal("API_KEY required")
+		log.Fatal("DALLE_API_KEY required")
 	}
 
 	dalleClient, err := dalle.NewHTTPClient(apiKey)
@@ -41,10 +41,10 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if t.Status == "succeeded" {
+		if t.Status == dalle.StatusSucceeded {
 			fmt.Println("task succeeded")
 			break
-		} else if t.Status == "rejected" {
+		} else if t.Status == dalle.StatusRejected {
 			log.Fatal("rejected: ", t.ID)
 		}
 
