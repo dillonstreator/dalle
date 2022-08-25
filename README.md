@@ -49,4 +49,7 @@ reader, err := dalleClient.Download(ctx, t.Generations.Data[0].ID)
 // handle err and close readCloser
 ```
 
-See [full example here](./cmd/example/main.go)
+## Examples
+
+- [Generating, polling, and downloading a single image](./cmd/example/main.go)
+- [Downloading all generated images from first 50 tasks](./cmd/downloadall/main.go)

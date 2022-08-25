@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -15,7 +16,7 @@ const (
 	defaultUserAgent = "dalle/" + libraryVersion
 	baseURL          = "https://labs.openai.com/api/labs"
 
-	defaultHTTPClientTimeout = 5 * time.Second
+	defaultHTTPClientTimeout = 15 * time.Second
 )
 
 type option func(*HTTPClient) error
@@ -113,16 +114,37 @@ func (c *HTTPClient) Generate(ctx context.Context, caption string) (*Task, error
 		},
 		TaskType: "text2im",
 	}
-	return task, c.request(ctx, "POST", "/tasks", req, task)
+	return task, c.request(ctx, "POST", "/tasks", nil, req, task)
+}
+
+type ListTasksResponse struct {
+	Object string `json:"object"`
+	Data   []Task `json:"data"`
+}
+
+type ListTasksRequest struct {
+	Limit int32 `json:"limit"`
+}
+
+func (c *HTTPClient) ListTasks(ctx context.Context, req *ListTasksRequest) (*ListTasksResponse, error) {
+	res := &ListTasksResponse{}
+	url := "/tasks"
+	if req != nil {
+		if req.Limit != 0 {
+			url += fmt.Sprintf("?limit=%d", req.Limit)
+		}
+	}
+
+	return res, c.request(ctx, "GET", url, nil, nil, res)
 }
 
 func (c *HTTPClient) GetTask(ctx context.Context, taskID string) (*Task, error) {
 	task := &Task{}
-	return task, c.request(ctx, "GET", "/tasks/"+taskID, nil, task)
+	return task, c.request(ctx, "GET", "/tasks/"+taskID, nil, nil, task)
 }
 
 func (c *HTTPClient) Download(ctx context.Context, generationID string) (io.ReadCloser, error) {
-	req, err := c.createRequest(ctx, "/generations/"+generationID+"/download", "GET", nil)
+	req, err := c.createRequest(ctx, "/generations/"+generationID+"/download", "GET", nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -135,8 +157,12 @@ func (c *HTTPClient) Download(ctx context.Context, generationID string) (io.Read
 	return resp.Body, nil
 }
 
-func (c *HTTPClient) createRequest(ctx context.Context, path, method string, data interface{}) (*http.Request, error) {
+func (c *HTTPClient) createRequest(ctx context.Context, path, method string, values *url.Values, data interface{}) (*http.Request, error) {
 	url := baseURL + path
+
+	if values != nil {
+		url += "?" + values.Encode()
+	}
 
 	var body io.Reader
 	if data != nil {
@@ -159,8 +185,8 @@ func (c *HTTPClient) createRequest(ctx context.Context, path, method string, dat
 	return req, nil
 }
 
-func (c *HTTPClient) request(ctx context.Context, method, path string, data interface{}, result interface{}) error {
-	req, err := c.createRequest(ctx, path, method, data)
+func (c *HTTPClient) request(ctx context.Context, method, path string, values *url.Values, body interface{}, result interface{}) error {
+	req, err := c.createRequest(ctx, path, method, values, body)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
