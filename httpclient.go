@@ -37,18 +37,18 @@ func WithUserAgent(userAgent string) option {
 }
 
 type HTTPClient struct {
-	httpClient  *http.Client
-	userAgent   string
-	bearerToken string
+	httpClient *http.Client
+	userAgent  string
+	apiKey     string
 }
 
 var _ Client = (*HTTPClient)(nil)
 
-func NewHTTPClient(bearerToken string, opts ...option) (*HTTPClient, error) {
+func NewHTTPClient(apiKey string, opts ...option) (*HTTPClient, error) {
 	c := &HTTPClient{
-		httpClient:  &http.Client{Timeout: defaultHTTPClientTimeout},
-		userAgent:   defaultUserAgent,
-		bearerToken: bearerToken,
+		httpClient: &http.Client{Timeout: defaultHTTPClientTimeout},
+		userAgent:  defaultUserAgent,
+		apiKey:     apiKey,
 	}
 
 	for _, opt := range opts {
@@ -129,7 +129,7 @@ func (c *HTTPClient) Download(ctx context.Context, generationID string) (io.Read
 		return nil, fmt.Errorf("building request %w", err)
 	}
 
-	req.Header.Add("Authorization", "Bearer "+c.bearerToken)
+	req.Header.Add("Authorization", "Bearer "+c.apiKey)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Set("User-Agent", c.userAgent)
 	resp, err := c.httpClient.Do(req)
@@ -157,7 +157,7 @@ func (c *HTTPClient) request(ctx context.Context, method, path string, data inte
 		return fmt.Errorf("building request %w", err)
 	}
 
-	req.Header.Add("Authorization", "Bearer "+c.bearerToken)
+	req.Header.Add("Authorization", "Bearer "+c.apiKey)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Set("User-Agent", c.userAgent)
 	resp, err := c.httpClient.Do(req)
