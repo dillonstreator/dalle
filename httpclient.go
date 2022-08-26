@@ -157,6 +157,18 @@ func (c *HTTPClient) Download(ctx context.Context, generationID string) (io.Read
 	return resp.Body, nil
 }
 
+// Share makes the generation public and returns the public url
+func (c *HTTPClient) Share(ctx context.Context, generationID string) (string, error) {
+	res := &GenerationData{}
+
+	err := c.request(ctx, "POST", "/generations/"+generationID+"/share", nil, nil, res)
+	if err != nil {
+		return "", err
+	}
+
+	return res.Generation.ImagePath, nil
+}
+
 func (c *HTTPClient) createRequest(ctx context.Context, path, method string, values *url.Values, data interface{}) (*http.Request, error) {
 	url := baseURL + path
 
