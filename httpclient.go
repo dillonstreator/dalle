@@ -109,10 +109,10 @@ func (c *HTTPClient) Generate(ctx context.Context, caption string) (*Task, error
 	task := &Task{}
 	req := &GenerateRequest{
 		Prompt: GenerateRequestPrompt{
-			BatchSize: 4,
+			BatchSize: defaultBatchSize,
 			Caption:   caption,
 		},
-		TaskType: "text2im",
+		TaskType: TaskTypeText2Im,
 	}
 	return task, c.request(ctx, "POST", "/tasks", nil, req, task)
 }
