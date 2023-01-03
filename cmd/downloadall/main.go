@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
+	"strconv"
 
 	"github.com/dillonstreator/dalle"
 	"golang.org/x/sync/errgroup"
@@ -15,6 +17,23 @@ func main() {
 	apiKey := os.Getenv("DALLE_API_KEY")
 	if len(apiKey) == 0 {
 		log.Fatal("DALLE_API_KEY required")
+	}
+
+	concurrency := 5
+
+	concurrencyStr := os.Getenv("CONCURRENCY")
+	if len(concurrencyStr) != 0 {
+		var err error
+
+		concurrency, err = strconv.Atoi(concurrencyStr)
+		if err != nil {
+			log.Fatalf("invalid `CONCURRENCY` value: %s", err.Error())
+		}
+	}
+
+	imagesPath := os.Getenv("IMAGES_PATH")
+	if len(imagesPath) == 0 {
+		imagesPath = "images"
 	}
 
 	dalleClient, err := dalle.NewHTTPClient(apiKey)
@@ -29,9 +48,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	eg := &errgroup.Group{}
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(concurrency)
 
 	for _, t := range res.Data {
+		if egCtx.Err() != nil {
+			break
+		}
 
 		if t.Status != dalle.StatusSucceeded {
 			fmt.Printf("task id %s not completed yet.. skipping\n", t.ID)
@@ -43,19 +66,19 @@ func main() {
 			g := generation
 			eg.Go(func() error {
 
-				reader, err := dalleClient.Download(ctx, g.ID)
+				reader, err := dalleClient.Download(egCtx, g.ID)
 				if err != nil {
 					return err
 				}
 				defer reader.Close()
 
-				file, err := os.Create("images/" + g.ID + ".png")
+				file, err := os.Create(path.Join(imagesPath, g.ID+".png"))
 				if err != nil {
 					return err
 				}
 				defer file.Close()
 
-				_, err = io.Copy(file, reader)
+				_, err = io.CopyBuffer(file, reader, make([]byte, 2048))
 				if err != nil {
 					return err
 				}

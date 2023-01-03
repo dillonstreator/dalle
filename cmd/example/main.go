@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dillonstreator/dalle"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -53,17 +54,38 @@ func main() {
 
 	fmt.Printf("%d images generated", len(t.Generations.Data))
 
-	reader, err := dalleClient.Download(ctx, t.Generations.Data[0].ID)
+	eg := errgroup.Group{}
+
+	for _, data := range t.Generations.Data {
+
+		d := data
+
+		eg.Go(func() error {
+
+			reader, err := dalleClient.Download(ctx, d.ID)
+			if err != nil {
+				return err
+			}
+			defer reader.Close()
+
+			file, err := os.Create(fmt.Sprintf("%s.png", d.ID))
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			_, err = io.CopyBuffer(file, reader, make([]byte, 512))
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+	}
+
+	err = eg.Wait()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer reader.Close()
-
-	b, err := io.ReadAll(reader)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	os.WriteFile(fmt.Sprintf("%s.png", t.Generations.Data[0].ID), b, os.ModePerm)
-
 }
